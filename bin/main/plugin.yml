@@ -1,0 +1,8 @@
+name: WLoginBonus
+version: '1.0-SNAPSHOT'
+main: red.man10.wloginbonus.Main
+api-version: 1.19
+authors: [ woxloi ]
+depend: [SCommandRouter]
+commands:
+  loginbonus:
