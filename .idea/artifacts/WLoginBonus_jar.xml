@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="WLoginBonus:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/WLoginBonus_jar</output-path>
+    <root id="archive" name="WLoginBonus.jar">
+      <element id="module-output" name="WLoginBonus.main" />
+      <element id="file-copy" path="$PROJECT_DIR$/src/main/resources/plugin.yml" />
+    </root>
+  </artifact>
+</component>
