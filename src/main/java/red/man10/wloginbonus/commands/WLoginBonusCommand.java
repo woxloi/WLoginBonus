@@ -25,7 +25,7 @@ public class WLoginBonusCommand extends SCommandRouter {
     }
 
     public void registerCommands() {
-        //shops command
+        //loginbonus command
         addCommand(
                 new SCommandObject()
                         .prefix("test")
@@ -55,7 +55,7 @@ public class WLoginBonusCommand extends SCommandRouter {
                         .prefix("deposit")
                         .argument("player")
                         .argument("金額")
-                        .permission("wloginbonus.money")
+                        .permission("wloginbonus.deposit")
                         .explanation("指定したプレイヤーのお金を増やす(内部用)")
                         .executor(new DepositCommand(plugin))
         );

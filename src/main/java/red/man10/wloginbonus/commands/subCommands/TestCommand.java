@@ -24,7 +24,7 @@ public class TestCommand implements CommandExecutor {
 
         // コマンドが許可されている場合の処理を書く
         Bukkit.broadcastMessage(Main.prefix + "§a§l" + player.getName() + "がテストコマンドを打ちました");
-        sender.sendMessage(Main.prefix + "テストコマンドの実行に成功しました");
+        sender.sendMessage(Main.prefix + "§a§lテストコマンドの実行に成功しました");
 
         return true;
     }
