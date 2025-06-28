@@ -25,8 +25,6 @@ import java.util.List;
 public class EditCommand implements CommandExecutor, Listener {
 
     private final Main plugin;
-
-    // チャット入力待ちの状態管理
     private final Map<UUID, InputSession> waitingForInput = new ConcurrentHashMap<>();
 
     public EditCommand(JavaPlugin plugin){
@@ -34,18 +32,23 @@ public class EditCommand implements CommandExecutor, Listener {
         plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
-    // 入力セッションタイプ
+    public void startCommandInputSession(Player player, String bonusName, int day){
+        waitingForInput.put(player.getUniqueId(), new InputSession(InputType.SET_COMMAND, bonusName, day));
+        player.sendMessage(Main.prefix + "§e§l" + day + "日目のコマンド報酬をチャットで入力してください。複数ある場合は改行（\\n）で区切ってください。キャンセルするには 'cancel' と入力。");
+    }
+
+
     private enum InputType {
         SET_DAYS,
         SET_CONSECUTIVE_DAYS,
-        SET_REWARD    // ← 追加：報酬設定用
+        SET_COMMAND,
+        SET_REWARD
     }
 
-    // 入力セッションデータクラス
     private static class InputSession {
         InputType type;
         String bonusName;
-        int rewardDay = -1; // 何日目の報酬か（報酬用のみ）
+        int rewardDay = -1;
 
         InputSession(InputType type, String bonusName){
             this.type = type;
@@ -61,7 +64,6 @@ public class EditCommand implements CommandExecutor, Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args){
-
         if(!(sender instanceof Player)){
             sender.sendMessage(Main.prefix + "このコマンドはプレイヤーのみ実行可能です");
             return true;
@@ -70,24 +72,21 @@ public class EditCommand implements CommandExecutor, Listener {
         Player player = (Player) sender;
 
         if(args.length < 2){
-            player.sendMessage(Main.prefix + "§cログインボーナスの名前を指定してください");
+            player.sendMessage(Main.prefix + "§c§lログインボーナスの名前を指定してください");
             return true;
         }
 
         String bonusName = args[1];
 
         if(!WLoginBonusAPI.exists(bonusName)){
-            player.sendMessage(Main.prefix + "§cログインボーナス「" + bonusName + "」は存在しません");
+            player.sendMessage(Main.prefix + "§c§lログインボーナスの取得に失敗しました");
             return true;
         }
 
-        // 編集用GUIを開く
         new LoginBonusEditMenu(plugin, bonusName).open(player);
-
         return true;
     }
 
-    // チャットでの入力待ち処理
     @EventHandler
     public void onChatInput(AsyncPlayerChatEvent e){
         Player player = e.getPlayer();
@@ -96,59 +95,51 @@ public class EditCommand implements CommandExecutor, Listener {
         if(!waitingForInput.containsKey(uuid)) return;
 
         e.setCancelled(true);
-
         InputSession session = waitingForInput.get(uuid);
         String msg = e.getMessage();
 
         if(msg.equalsIgnoreCase("cancel")){
-            player.sendMessage(Main.prefix + "§c入力をキャンセルしました。");
+            player.sendMessage(Main.prefix + "§c§l入力をキャンセルしました。");
             waitingForInput.remove(uuid);
             return;
         }
 
         switch(session.type){
             case SET_DAYS:
-                int days;
                 try {
-                    days = Integer.parseInt(msg);
+                    int days = Integer.parseInt(msg);
                     if(days <= 0){
-                        player.sendMessage(Main.prefix + "§c1以上の正しい数値を入力してください");
+                        player.sendMessage(Main.prefix + "§c§l1以上の正しい数値を入力してください");
                         return;
                     }
+                    if(WLoginBonusAPI.setDays(session.bonusName, days)){
+                        player.sendMessage(Main.prefix + "§a§lログインボーナス「" + session.bonusName + "」の日数を " + days + " に設定しました");
+                    } else {
+                        player.sendMessage(Main.prefix + "§c§l日数の設定に失敗しました");
+                    }
                 } catch(NumberFormatException ex){
-                    player.sendMessage(Main.prefix + "§c数字を入力してください");
-                    return;
-                }
-
-                boolean success = WLoginBonusAPI.setDays(session.bonusName, days);
-                if(success){
-                    player.sendMessage(Main.prefix + "§aログインボーナス「" + session.bonusName + "」の日数を " + days + " に設定しました");
-                } else {
-                    player.sendMessage(Main.prefix + "§c日数の設定に失敗しました");
+                    player.sendMessage(Main.prefix + "§c§l数字を入力してください");
                 }
                 waitingForInput.remove(uuid);
                 break;
 
             case SET_CONSECUTIVE_DAYS:
-                int cDays;
                 try {
-                    cDays = Integer.parseInt(msg);
+                    int cDays = Integer.parseInt(msg);
                     if(cDays <= 0){
-                        player.sendMessage(Main.prefix + "§c1以上の正しい数値を入力してください");
+                        player.sendMessage(Main.prefix + "§c§l1以上の正しい数値を入力してください");
                         return;
                     }
+                    LoginBonusData data = WLoginBonusAPI.getBonus(session.bonusName);
+                    if(data != null){
+                        data.setConsecutiveDays(cDays);
+                        WLoginBonusAPI.updateBonus(session.bonusName, data);
+                        player.sendMessage(Main.prefix + "§a§lログインボーナス「" + session.bonusName + "」の連続ログイン日数を " + cDays + " に設定しました");
+                    } else {
+                        player.sendMessage(Main.prefix + "§c§l設定に失敗しました");
+                    }
                 } catch(NumberFormatException ex){
-                    player.sendMessage(Main.prefix + "§c数字を入力してください");
-                    return;
-                }
-
-                LoginBonusData data = WLoginBonusAPI.getBonus(session.bonusName);
-                if(data != null){
-                    data.setConsecutiveDays(cDays);
-                    WLoginBonusAPI.updateBonus(session.bonusName, data);
-                    player.sendMessage(Main.prefix + "§aログインボーナス「" + session.bonusName + "」の連続ログイン日数を " + cDays + " に設定しました");
-                } else {
-                    player.sendMessage(Main.prefix + "§c設定に失敗しました");
+                    player.sendMessage(Main.prefix + "§c§l数字を入力してください");
                 }
                 waitingForInput.remove(uuid);
                 break;
@@ -156,37 +147,22 @@ public class EditCommand implements CommandExecutor, Listener {
             case SET_REWARD:
                 LoginBonusData rewardData = WLoginBonusAPI.getBonus(session.bonusName);
                 if(rewardData == null){
-                    player.sendMessage(Main.prefix + "§cログインボーナスが見つかりません。");
+                    player.sendMessage(Main.prefix + "§c§lログインボーナスが見つかりません。");
                     waitingForInput.remove(uuid);
                     return;
                 }
-
-                List<String> rewards = rewardData.getRewardDescriptionList();
-                if(rewards == null){
-                    rewards = new ArrayList<>();
-                }
-
-                // 5日分確保
-                while(rewards.size() < 5){
-                    rewards.add("");
-                }
-
-                rewards.set(session.rewardDay - 1, msg);
-                rewardData.setRewardDescriptionList(rewards);
+                rewardData.setRewardDescriptionByDay(session.rewardDay, msg);
                 WLoginBonusAPI.updateBonus(session.bonusName, rewardData);
-
-                player.sendMessage(Main.prefix + "§a" + session.rewardDay + "日目の報酬を「" + msg + "」に設定しました。");
+                player.sendMessage(Main.prefix + "§a§l" + session.rewardDay + "日目の報酬を「" + msg + "」に設定しました。");
                 waitingForInput.remove(uuid);
                 break;
         }
     }
 
-    // 報酬設定用チャット入力待ちを開始するメソッド
     public void startRewardInputSession(Player player, String bonusName, int day){
         waitingForInput.put(player.getUniqueId(), new InputSession(InputType.SET_REWARD, bonusName, day));
     }
 
-    // ログインボーナス編集GUIクラス
     public class LoginBonusEditMenu extends SInventory {
 
         private final String bonusName;
@@ -195,52 +171,45 @@ public class EditCommand implements CommandExecutor, Listener {
             super("§eログインボーナス編集: " + bonusName, 3, plugin);
             this.bonusName = bonusName;
 
-            // 日数設定ボタン
             setItem(10, new SInventoryItem(createItem(Material.CLOCK, "§b日数設定", "クリックして日数を設定"))
                     .setEvent(e -> {
                         Player p = (Player) e.getWhoClicked();
                         p.closeInventory();
                         waitingForInput.put(p.getUniqueId(), new InputSession(InputType.SET_DAYS, bonusName));
-                        p.sendMessage(Main.prefix + "§e日数を入力してください");
+                        p.sendMessage(Main.prefix + "§e§l日数を入力してください");
                     }));
 
-            // 連続ログイン日数設定ボタン（新規追加）
             setItem(11, new SInventoryItem(createItem(Material.PAPER, "§d連続ログイン日数設定", "クリックして連続ログイン日数を設定"))
                     .setEvent(e -> {
                         Player p = (Player) e.getWhoClicked();
                         p.closeInventory();
                         waitingForInput.put(p.getUniqueId(), new InputSession(InputType.SET_CONSECUTIVE_DAYS, bonusName));
-                        p.sendMessage(Main.prefix + "§e連続ログイン日数を入力してください");
+                        p.sendMessage(Main.prefix + "§e§l連続ログイン日数を入力してください");
                     }));
 
-            // 報酬設定ボタン
             setItem(12, new SInventoryItem(createItem(Material.CHEST, "§a報酬設定", "クリックして報酬を編集"))
                     .setEvent(e -> {
                         Player p = (Player) e.getWhoClicked();
                         p.closeInventory();
-                        // RewardEditMenuへ遷移する際、EditCommandのstartRewardInputSessionメソッドを使うため
-                        new RewardEditMenu(plugin, bonusName).open(p);
+                        new RewardEditMenu((Main) plugin, bonusName).open(p);
                     }));
 
-            // 削除ボタン
             setItem(14, new SInventoryItem(createItem(Material.BARRIER, "§cログインボーナス削除", "クリックで削除"))
                     .setEvent(e -> {
                         Player p = (Player) e.getWhoClicked();
                         boolean success = WLoginBonusAPI.deleteBonus(bonusName);
                         if(success){
-                            p.sendMessage(Main.prefix + "§cログインボーナス「" + bonusName + "」を削除しました");
+                            p.sendMessage(Main.prefix + "§c§lログインボーナス「" + bonusName + "」を削除しました");
                         } else {
-                            p.sendMessage(Main.prefix + "§c削除に失敗しました");
+                            p.sendMessage(Main.prefix + "§c§l削除に失敗しました");
                         }
                         p.closeInventory();
                     }));
 
-            // 戻るボタン
             setItem(16, new SInventoryItem(createItem(Material.ARROW, "§7戻る", "一覧に戻る"))
                     .setEvent(e -> {
                         Player p = (Player) e.getWhoClicked();
                         p.closeInventory();
-                        // ここで一覧GUIを開く処理あれば呼ぶ
                     }));
         }
 

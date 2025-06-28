@@ -31,7 +31,7 @@ public class LoginBonusEditMenu extends SInventory {
                 .setEvent(e -> {
                     Player p = (Player) e.getWhoClicked();
                     p.closeInventory();
-                    new RewardEditMenu(plugin, bonusName).open(p);
+                    new RewardEditMenu((Main) plugin, bonusName).open(p);
                 }));
 
         // 削除ボタン

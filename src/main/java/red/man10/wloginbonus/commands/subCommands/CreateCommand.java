@@ -30,7 +30,7 @@ public class CreateCommand implements CommandExecutor {
 
         // ここに保存処理を追加予定
         // WLoginBonusAPIからとってくる予定
-        WLoginBonusAPI.createBonus(name);
+        WLoginBonusAPI.addBonus(name);
         sender.sendMessage(Main.prefix + "§a§lログインボーナス「" + name + "」を作成しました");
         sender.sendMessage(Main.prefix + "§a§l/loginbonus edit 「" + name + "」で編集可能");
 

@@ -11,14 +11,14 @@ public final class Main extends JavaPlugin {
     public static String prefix = "§6[§e§lLoginBonus§6]§f";
 
     private WLoginBonusAPI api;
-    private EditCommand editCommand;  // 追加
+    private EditCommand editCommand;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         vault = new VaultAPI();
         api = new WLoginBonusAPI();
-
+        this.editCommand = new EditCommand(this);
         // WLoginBonusCommand初期化（もしEditCommandもこの中でやっていたら調整が必要）
         new WLoginBonusCommand(this);
     }
