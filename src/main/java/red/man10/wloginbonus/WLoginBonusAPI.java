@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WLoginBonusAPI {
 
     private static final Map<String, LoginBonusData> bonuses = new ConcurrentHashMap<>();
+    private static final Map<String, Integer> playerConsecutiveDays = new ConcurrentHashMap<>();
 
     // プレイヤーUUID + ボーナス名 → 最後に受け取った日付を保存（仮にメモリ管理）
     private static final Map<String, LocalDate> claimedDates = new ConcurrentHashMap<>();
@@ -110,13 +111,48 @@ public class WLoginBonusAPI {
         LocalDate today = LocalDate.now();
         return today.equals(lastClaimDate);
     }
+    public static int getPlayerCurrentDay(Player player, String bonusName) {
+        String key = player.getUniqueId().toString() + ":" + bonusName;
+        LocalDate lastClaimDate = claimedDates.get(key);
+        LocalDate today = LocalDate.now();
+
+        if (lastClaimDate == null) {
+            playerConsecutiveDays.put(key, 1);
+            return 1;
+        }
+
+        if (lastClaimDate.equals(today)) {
+            // 今日すでに受け取っている場合は0
+            return 0;
+        }
+
+        if (lastClaimDate.plusDays(1).equals(today)) {
+            // 連続受取なら前回の連続日数＋１
+            int currentDay = playerConsecutiveDays.getOrDefault(key, 0) + 1;
+            LoginBonusData data = bonuses.get(bonusName);
+            if (data == null) return 1;
+            int maxDays = data.getDays();
+            int nextDay = Math.min(currentDay, maxDays);
+            playerConsecutiveDays.put(key, nextDay);
+            return nextDay;
+        } else {
+            // 連続切れたら1日目にリセット
+            playerConsecutiveDays.put(key, 1);
+            return 1;
+        }
+    }
+    public static LocalDate getLastClaimDate(String key){
+        return claimedDates.get(key);
+    }
+
 
     // 追加4: 報酬をプレイヤーに付与し、受取記録を更新
     public static boolean giveReward(Player player, String bonusName){
         LoginBonusData data = bonuses.get(bonusName);
         if(data == null) return false;
 
-        int day = data.getConsecutiveDays();
+        // プレイヤーの現在の受取日数（何日目か）を取得（独自実装が必要）
+        int day = getPlayerCurrentDay(player, bonusName);
         if(day <= 0) return false;
 
         // アイテム報酬付与
@@ -132,7 +168,11 @@ public class WLoginBonusAPI {
         if(commands != null){
             for(String cmd : commands){
                 String replacedCmd = cmd.replace("<player>", player.getName());
+                if (replacedCmd.startsWith("/")) {
+                    replacedCmd = replacedCmd.substring(1); // 先頭のスラッシュを除去
+                }
                 Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), replacedCmd);
+                Bukkit.getLogger().info("[LoginBonus] 実行コマンド: " + replacedCmd);
             }
         }
 

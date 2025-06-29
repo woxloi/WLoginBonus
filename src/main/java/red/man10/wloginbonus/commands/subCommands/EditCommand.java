@@ -15,6 +15,7 @@ import red.man10.wloginbonus.Main;
 import red.man10.wloginbonus.WLoginBonusAPI;
 import red.man10.wloginbonus.LoginBonusData;
 import red.man10.wloginbonus.menus.RewardEditMenu;
+import red.man10.wloginbonus.menus.LoginBonusEditMenu;
 
 import java.util.Map;
 import java.util.UUID;
@@ -36,13 +37,23 @@ public class EditCommand implements CommandExecutor, Listener {
         waitingForInput.put(player.getUniqueId(), new InputSession(InputType.SET_COMMAND, bonusName, day));
         player.sendMessage(Main.prefix + "§e§l" + day + "日目のコマンド報酬をチャットで入力してください。複数ある場合は改行（\\n）で区切ってください。キャンセルするには 'cancel' と入力。");
     }
+    public void startDaysInputSession(Player player, String bonusName){
+        waitingForInput.put(player.getUniqueId(), new InputSession(InputType.SET_DAYS, bonusName));
+        player.sendMessage(Main.prefix + "§e§l日数をチャットで入力してください。キャンセルは 'cancel'");
+    }
+
+    public void startDisplayNameInputSession(Player player, String bonusName){
+        waitingForInput.put(player.getUniqueId(), new InputSession(InputType.SET_DISPLAY_NAME, bonusName));
+        player.sendMessage(Main.prefix + "§e§l表示名をチャットで入力してください。キャンセルは 'cancel'");
+    }
 
 
     private enum InputType {
         SET_DAYS,
         SET_CONSECUTIVE_DAYS,
         SET_COMMAND,
-        SET_REWARD
+        SET_REWARD,
+        SET_DISPLAY_NAME  // 追加
     }
 
     private static class InputSession {
@@ -122,6 +133,26 @@ public class EditCommand implements CommandExecutor, Listener {
                 }
                 waitingForInput.remove(uuid);
                 break;
+            case SET_COMMAND:
+                LoginBonusData commandData = WLoginBonusAPI.getBonus(session.bonusName);
+                if (commandData == null) {
+                    player.sendMessage(Main.prefix + "§c§lログインボーナスが見つかりません。");
+                    waitingForInput.remove(uuid);
+                    return;
+                }
+
+                // \n で分割（\\n はバックスラッシュがエスケープされるため）
+                List<String> commandList = List.of(msg.split("\\\\n"));
+                commandData.setCommandRewards(session.rewardDay, new ArrayList<>(commandList));
+                WLoginBonusAPI.updateBonus(session.bonusName, commandData);
+
+                player.sendMessage(Main.prefix + "§a§l" + session.rewardDay + "日目のコマンド報酬を設定しました：");
+                for (String cmd : commandList) {
+                    player.sendMessage(" §f- " + cmd);
+                }
+
+                waitingForInput.remove(uuid);
+                break;
 
             case SET_CONSECUTIVE_DAYS:
                 try {
@@ -162,12 +193,13 @@ public class EditCommand implements CommandExecutor, Listener {
     public void startRewardInputSession(Player player, String bonusName, int day){
         waitingForInput.put(player.getUniqueId(), new InputSession(InputType.SET_REWARD, bonusName, day));
     }
-
-    public class LoginBonusEditMenu extends SInventory {
+    /**
+     * 旧LoginBonusEditmenu
+     */    public class LoginBonusEditMenukyuu extends SInventory {
 
         private final String bonusName;
 
-        public LoginBonusEditMenu(JavaPlugin plugin, String bonusName){
+        public LoginBonusEditMenukyuu(JavaPlugin plugin, String bonusName){
             super("§eログインボーナス編集: " + bonusName, 3, plugin);
             this.bonusName = bonusName;
 

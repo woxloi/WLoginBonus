@@ -8,8 +8,8 @@ import org.bukkit.inventory.ItemStack;
 import red.man10.wloginbonus.Main;
 import red.man10.wloginbonus.WLoginBonusAPI;
 import red.man10.wloginbonus.LoginBonusData;
-import red.man10.wloginbonus.commands.subCommands.EditCommand;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class RewardEditMenu extends SInventory {
@@ -19,7 +19,7 @@ public class RewardEditMenu extends SInventory {
     private int currentDayIndex = 0;
 
     public RewardEditMenu(Main plugin, String bonusName) {
-        super("\u00a7e\u5831\u916c\u7de8\u96c6: " + bonusName + " - \u65e5\u76ee " + (1 + 0), 6, plugin);
+        super("§e報酬編集: " + bonusName + " - 日目 " + (1 + 0), 6, plugin);
         this.plugin = plugin;
         this.bonusName = bonusName;
         renderMenu();
@@ -32,101 +32,109 @@ public class RewardEditMenu extends SInventory {
         if (data == null) return;
 
         int maxDay = data.getConsecutiveDays();
+        int day = currentDayIndex + 1;
 
-        // アイテム報酬
+        List<ItemStack> items = data.getItemRewards(day);
+        if (items == null) items = new ArrayList<>();
         int slot = 0;
-        for (ItemStack item : data.getItemRewards(currentDayIndex + 1)) {
-            setItem(slot++, new SInventoryItem(item.clone()).setEvent(e -> {
+        // ここでアイテム単体をfinalにしてコピーして使う
+        for (ItemStack item : new ArrayList<>(items)) {
+            final ItemStack finalItem = item.clone();
+            List<ItemStack> finalItems = items;
+            setItem(slot++, new SInventoryItem(finalItem).setEvent(e -> {
                 Player p = (Player) e.getWhoClicked();
-                data.getItemRewards(currentDayIndex + 1).remove(item);
+                finalItems.remove(finalItem);
+                data.setItemRewardList(day, finalItems);
                 WLoginBonusAPI.updateBonus(bonusName, data);
-                p.sendMessage(Main.prefix + "\u00a7c\u30a2\u30a4\u30c6\u30e0\u5831\u916c\u3092\u524a\u9664\u3057\u307e\u3057\u305f");
+                p.sendMessage(Main.prefix + "§cアイテム報酬を削除しました");
                 renderMenu();
             }));
             if (slot >= 27) break;
         }
 
-        // アイテム追加
-        setItem(30, new SInventoryItem(createItem(Material.HOPPER, "\u00a7a\u30a2\u30a4\u30c6\u30e0\u8ffd\u52a0", "\u624b\u306b\u6301\u3063\u305f\u30a2\u30a4\u30c6\u30e0\u3092\u8ffd\u52a0")).setEvent(e -> {
+        List<ItemStack> finalItems1 = items;
+        setItem(30, new SInventoryItem(createItem(Material.HOPPER, "§aアイテム追加", "手に持ったアイテムを追加")).setEvent(e -> {
             Player p = (Player) e.getWhoClicked();
             ItemStack hand = p.getInventory().getItemInMainHand();
             if (hand == null || hand.getType() == Material.AIR) {
-                p.sendMessage(Main.prefix + "\u00a7c\u624b\u306b\u30a2\u30a4\u30c6\u30e0\u3092\u6301\u3063\u3066\u304f\u3060\u3055\u3044");
+                p.sendMessage(Main.prefix + "§c手にアイテムを持ってください");
                 return;
             }
-            data.addItemReward(currentDayIndex + 1, hand.clone());
+            finalItems1.add(hand.clone());
+            data.setItemRewardList(day, finalItems1);
             WLoginBonusAPI.updateBonus(bonusName, data);
-            p.sendMessage(Main.prefix + "\u00a7a\u30a2\u30a4\u30c6\u30e0\u3092\u8ffd\u52a0\u3057\u307e\u3057\u305f");
+            p.sendMessage(Main.prefix + "§aアイテムを追加しました");
             renderMenu();
         }));
 
-        // コマンド報酬
+        List<String> commands = data.getCommandRewards(day);
+        if (commands == null) commands = new ArrayList<>();
         int cmdSlot = 27;
-        for (String cmd : data.getCommandRewards(currentDayIndex + 1)) {
-            setItem(cmdSlot++, new SInventoryItem(createItem(Material.PAPER, "\u00a7e\u30b3\u30de\u30f3\u30c9: " + cmd, "\u30af\u30ea\u30c3\u30af\u3067\u524a\u9664")).setEvent(e -> {
+        for (String cmd : new ArrayList<>(commands)) {
+            final String finalCmd = cmd; // ここをfinalに
+            List<String> finalCommands = commands;
+            setItem(cmdSlot++, new SInventoryItem(createItem(Material.PAPER, "§eコマンド: " + finalCmd, "クリックで削除")).setEvent(e -> {
                 Player p = (Player) e.getWhoClicked();
-                data.getCommandRewards(currentDayIndex + 1).remove(cmd);
+                finalCommands.remove(finalCmd);
+                data.setCommandRewards(day, finalCommands);
                 WLoginBonusAPI.updateBonus(bonusName, data);
-                p.sendMessage(Main.prefix + "\u00a7c\u30b3\u30de\u30f3\u30c9\u3092\u524a\u9664\u3057\u307e\u3057\u305f");
+                p.sendMessage(Main.prefix + "§cコマンドを削除しました");
                 renderMenu();
             }));
             if (cmdSlot >= 36) break;
         }
 
-        // コマンド追加
-        setItem(31, new SInventoryItem(createItem(Material.WRITABLE_BOOK, "\u00a7a\u30b3\u30de\u30f3\u30c9\u8ffd\u52a0", "\u30c1\u30e3\u30c3\u30c8\u3067\u5165\u529b")).setEvent(e -> {
+        setItem(31, new SInventoryItem(createItem(Material.WRITABLE_BOOK, "§aコマンド追加", "チャットで入力")).setEvent(e -> {
             Player p = (Player) e.getWhoClicked();
             p.closeInventory();
-            plugin.getEditCommand().startCommandInputSession(p, bonusName, currentDayIndex + 1);
-            p.sendMessage(Main.prefix + "\u00a7e\u30b3\u30de\u30f3\u30c9\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044");
+            plugin.getEditCommand().startCommandInputSession(p, bonusName, day);
+            p.sendMessage(Main.prefix + "§eコマンドをチャットで入力してください");
         }));
 
-        // ページング
-        setItem(48, new SInventoryItem(createItem(Material.ARROW, "\u00a77\u524d\u306e\u65e5")).setEvent(e -> {
+        setItem(48, new SInventoryItem(createItem(Material.ARROW, "§7前の日")).setEvent(e -> {
             if (currentDayIndex > 0) {
                 currentDayIndex--;
-                setTitle("\u00a7e\u5831\u916c\u7de8\u96c6: " + bonusName + " - \u65e5\u76ee " + (currentDayIndex + 1));
+                setTitle("§e報酬編集: " + bonusName + " - 日目 " + (currentDayIndex + 1));
                 renderMenu();
             }
         }));
 
-        setItem(50, new SInventoryItem(createItem(Material.ARROW, "\u00a77\u6b21\u306e\u65e5")).setEvent(e -> {
+        setItem(50, new SInventoryItem(createItem(Material.ARROW, "§7次の日")).setEvent(e -> {
             if (currentDayIndex + 1 < maxDay) {
                 currentDayIndex++;
-                setTitle("\u00a7e\u5831\u916c\u7de8\u96c6: " + bonusName + " - \u65e5\u76ee " + (currentDayIndex + 1));
+                setTitle("§e報酬編集: " + bonusName + " - 日目 " + (currentDayIndex + 1));
                 renderMenu();
             }
         }));
 
-        // 日数追加
-        setItem(49, new SInventoryItem(createItem(Material.EMERALD, "\u00a7a+1\u65e5\u8ffd\u52a0")).setEvent(e -> {
+        setItem(49, new SInventoryItem(createItem(Material.EMERALD, "§a+1日追加")).setEvent(e -> {
             Player p = (Player) e.getWhoClicked();
-            if (data.getConsecutiveDays() < 10) {
-                data.setConsecutiveDays(data.getConsecutiveDays() + 1);
+            if (maxDay < 10) {
+                data.setConsecutiveDays(maxDay + 1);
                 WLoginBonusAPI.updateBonus(bonusName, data);
-                p.sendMessage(Main.prefix + "\u00a7a\u65e5\u6570\u3092+1\u3057\u307e\u3057\u305f");
+                p.sendMessage(Main.prefix + "§a日数を+1しました");
                 renderMenu();
             } else {
-                p.sendMessage(Main.prefix + "\u00a7c\u6700\u592710\u65e5\u307e\u3067\u3067\u3059");
+                p.sendMessage(Main.prefix + "§c最大10日までです");
             }
         }));
 
-        // 戻る
-        setItem(53, new SInventoryItem(createItem(Material.BARRIER, "\u00a7c\u623b\u308b")).setEvent(e -> {
+        setItem(53, new SInventoryItem(createItem(Material.BARRIER, "§c戻る")).setEvent(e -> {
             Player p = (Player) e.getWhoClicked();
             p.closeInventory();
-            plugin.getEditCommand().new LoginBonusEditMenu(plugin, bonusName).open(p);
+            new LoginBonusEditMenu(plugin, bonusName).open(p);
         }));
 
         renderInventory();
     }
+
 
     private ItemStack createItem(Material mat, String name, String... lore) {
         ItemStack item = new ItemStack(mat);
         var meta = item.getItemMeta();
         if (meta != null) {
             meta.setDisplayName(name);
-            meta.setLore(java.util.Arrays.asList(lore));
+            meta.setLore(List.of(lore));
             item.setItemMeta(meta);
         }
         return item;

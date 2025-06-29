@@ -48,14 +48,14 @@ public class WLoginBonusCommand extends SCommandRouter {
                         .argument("内部名")
                         .permission("wloginbonus.create")
                         .explanation("新しくログインボーナスを作成する")
-                        .executor(new ClaimCommand(plugin))
+                        .executor(new CreateCommand(plugin))
         );
         addCommand(
                 new SCommandObject()
                         .prefix("claim")
                         .permission("wloginbonus.claim")
                         .explanation("ログインボーナスを受け取る")
-                        .executor(new WithdrawCommand(plugin))
+                        .executor(new ClaimCommand(plugin))
         );
         addCommand(
                 new SCommandObject()

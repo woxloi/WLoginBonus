@@ -2,9 +2,7 @@ package red.man10.wloginbonus;
 
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class LoginBonusData {
 
@@ -12,15 +10,20 @@ public class LoginBonusData {
     private int consecutiveDays;
     private int totalDays;
     private String rewardDescription;
+    private boolean isStreak = false; // デフォルトは通常ボーナス
+
 
     // 日数ごとの報酬説明リスト
     private List<String> rewardDescriptionList;
 
     // 日数ごとのコマンド報酬リスト（1日ごとに複数コマンド想定）
     private List<List<String>> commandRewardList;
+    private int days;  // ログインボーナスの最大日数（例：10日）
 
     // 日数ごとのアイテム報酬リスト（1日ごとに複数アイテム想定）
     private List<List<ItemStack>> itemRewardList;
+    private final Map<Integer, List<String>> commandRewardMap = new HashMap<>();
+
 
     public LoginBonusData(String name) {
         this.name = name;
@@ -52,6 +55,9 @@ public class LoginBonusData {
 
     public void setTotalDays(int totalDays) {
         this.totalDays = totalDays;
+    }
+    public int getDays() {
+        return days;
     }
 
     public void setDays(int days) {
@@ -174,6 +180,27 @@ public class LoginBonusData {
 
     public List<String> getCommandRewards(int day) {
         return getCommandRewardList(day);
+    }
+    public void setCommandRewards(int day, List<String> commands) {
+        commandRewardMap.put(day, commands);
+    }
+
+    public boolean isStreak() {
+        return isStreak;
+    }
+
+    public void setStreak(boolean streak) {
+        this.isStreak = streak;
+    }
+
+    public boolean hasCommandRewards(int day) {
+        List<String> list = getCommandRewardList(day);
+        return list != null && !list.isEmpty();
+    }
+
+    public boolean hasItemRewards(int day) {
+        List<ItemStack> list = getItemRewardList(day);
+        return list != null && !list.isEmpty();
     }
 
 }
